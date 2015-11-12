@@ -84,6 +84,7 @@ try:
     # pylint: disable=F0401,E0611
     from urllib.parse import splittype
     from urllib.parse import splithost
+    from http.client import HTTPConnection
     from xmlrpc.client import Transport as XMLTransport
     from xmlrpc.client import SafeTransport as XMLSafeTransport
     from xmlrpc.client import ServerProxy as XMLServerProxy
@@ -93,6 +94,7 @@ except ImportError:
     # pylint: disable=F0401,E0611
     from urllib import splittype
     from urllib import splithost
+    from httplib import HTTPConnection
     from xmlrpclib import Transport as XMLTransport
     from xmlrpclib import SafeTransport as XMLSafeTransport
     from xmlrpclib import ServerProxy as XMLServerProxy
@@ -376,6 +378,25 @@ class TransportMixIn(object):
         raise ProtocolError(host + handler,
                             response.status, response.reason,
                             response.msg)
+
+    def make_connection(self, host):
+        '''
+        Connect to server.
+
+        return an existing connection if possible.  This allows
+        HTTP/1.1 keep-alive.
+
+        :param host: Target host.
+        :return: An HTTPConnection object
+        '''
+        if self._connection and host == self._connection[0]:
+            return self._connection[1]
+        # create a HTTP connection object from a host descriptor
+        chost, header, x509 = self.get_host_info(host)
+        self.push_headers(header)  # push possible auth header
+        self._extra_headers = header  # also do what parent does
+        self._connection = host, HTTPConnection(chost)
+        return self._connection[1]
 
     def send_request(self, connection, handler, request_body, debug=0):
         """
